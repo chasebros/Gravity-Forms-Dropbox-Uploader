@@ -25,9 +25,41 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */
 
+require __DIR__.'/vendor/autoload.php';
+
+use Kunnu\Dropbox\Dropbox;
+use Kunnu\Dropbox\DropboxApp;
+use Kunnu\Dropbox\DropboxFile;
+
 /* Split admin and front-end functions */
 add_action('init',  array('GFdropbox', 'init'));
 add_action('admin_init',  array('GFdropbox', 'admin_init'));
+
+add_action('init', '_gf_dropbox_start_session', 1);
+add_action('wp_logout', '_gf_dropbox_end_session');
+add_action('wp_login', '_gf_dropbox_end_session');
+
+/**
+ * Start the session.
+ *
+ * @return void
+ */
+function _gf_dropbox_start_session() {
+    if (session_id()) {
+    	return;
+    }
+
+    session_start();
+}
+
+/**
+ * End the active session.
+ *
+ * @return void
+ */
+function _gf_dropbox_end_session() {
+    session_destroy();
+}
 
 /**
  *
@@ -135,13 +167,13 @@ class GFdropbox {
      */
 	private function settings_page() {
 
-		if(RGForms::get("page") == "gf_settings" || rgget("oauth_token")){
+		if(RGForms::get("page") == "gf_settings" || rgget("state")){
 			/* do validation before page is loaded */
 			if(rgpost("gf_dropbox_update")){
 				/* parse and store variables in options table */
 				self::update_dropbox_settings();
 			}
-			elseif(rgpost("gf_dropbox_authenticate") || rgget("oauth_token"))
+			elseif(rgpost("gf_dropbox_authenticate") || rgget("state"))
 			{
 				/* authenticate account */
 				self::authenticate_dropbox_account();
@@ -290,52 +322,29 @@ class GFdropbox {
 		$app_key = get_option("gf_dropbox_key");
 		$app_secret = get_option("gf_dropbox_secret");
 
-		/* include the dropbox uploader */
-		include 'dropbox-api/autoload.php';
-
 		/* authenticate */
-		$oauth = new Dropbox_OAuth_Curl($app_key, $app_secret);
-		$temp_state = get_option('gf_dropbox_state');
+		$app = new DropboxApp($app_key, $app_secret);
+		$dropbox = new Dropbox($app);
+		$oauth = $dropbox->getAuthHelper();
 
-		$state = (rgpost("gf_dropbox_authenticate")) ? '1' : $temp_state;
+		$state = rgget('state') ?: null;
+		$code = rgget('code') ?: null;
 
-		switch($state) {
-			case 1:
-				$tokens = $oauth->getRequestToken();
-				$return_url = 'http://' .$_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"];
+		$return_url = 'https://' .$_SERVER["HTTP_HOST"] . '/wp-admin/admin.php?page=gf_settings&subview=Dropbox';
 
-				/*setup for the return */
-				update_option('gf_dropbox_temp_token', serialize($tokens));
-				update_option('gf_dropbox_state', 2);
-				/*update_option('gf_dropbox_oauth_temp_token', $token);*/
-				wp_redirect($oauth->getAuthorizeURL($return_url));
-				exit();
-				break;
-			case 2:
-				/* set up temp token so we can get access token */
-				$oauth->setToken(unserialize(get_option('gf_dropbox_temp_token')));
+		if ($state === null || $code === null) {
+			$redirect_url = $oauth->getAuthUrl($return_url);
 
-				$tokens = $oauth->getAccessToken();
-				$oauth->setToken($tokens);
+			wp_redirect($redirect_url);
 
-				update_option('gf_dropbox_access_token', serialize($tokens));
-				delete_option('gf_dropbox_state');
-
-				$dropbox = new Dropbox_API($oauth);
-				$result = $dropbox->getAccountInfo();
-
-				if (isset($result['uid'])) {
-					/*redirect to Dropbox page and show success message */
-					wp_redirect(GF_DROPBOX_SETTINGS_URL.'&auth=1');
-				}
-				else
-				{
-					/* wordpress error */
-					wp_redirect(GF_DROPBOX_SETTINGS_URL.'&auth_error=1');
-				}
-				break;
-
+			exit;
 		}
+
+		$access = $oauth->getAccessToken($code, $state, $return_url);
+
+		update_option('gf_dropbox_access_token', $access->getToken());
+
+		wp_redirect(GF_DROPBOX_SETTINGS_URL . '&auth=1');
 	}
 
 	/**
@@ -515,7 +524,7 @@ class GFdropbox {
 
 					$dropbox_upload[] = array(
 						'field_id'		=> $id,
-						'dir' 			=> $override_path,
+						'dir' 			=> '/' . ltrim($override_path, '/'),
 						'file_name' 	=> $file_name,
 						'file_url'		=> $file,
 						'local_path' 	=> str_replace(site_url().'/', ABSPATH, $file)
@@ -530,55 +539,49 @@ class GFdropbox {
 
 		$remove_file = get_option("gf_dropbox_remove");
 
-		$tokens = unserialize(get_option('gf_dropbox_access_token'));
+		$token = get_option('gf_dropbox_access_token');
 
 		$error = array();
 
 		//	if the application hasn't been correctly configured and verified we won't run this
-		if(strlen($app_key) == 0 || strlen($app_secret) == 0 || sizeof($tokens) == 0)
+		if(strlen($app_key) == 0 || strlen($app_secret) == 0 || strlen($token) == 0)
 		{
 			return false;
 		}
 
-		//	Include the dropbox uploader
-		include 'dropbox-api/autoload.php';
-
-		//	Authenticate
-		$oauth = new Dropbox_OAuth_Curl($app_key, $app_secret);
-		$oauth->setToken($tokens);
-
 		//	Initilize Dropbox API
-		self::$dropbox = new Dropbox_API($oauth, 'sandbox');
+		$app = new DropboxApp($app_key, $app_secret, $token);
+		$dropbox = new Dropbox($app);
 
 		//	Upload the files
 		foreach($dropbox_upload as $file)
 		{
 			$full_path = $file['dir'].$file['file_name'];
 
-			$response = self::$dropbox->putFile($full_path, $file['local_path']);
+			$dropboxFile = new DropboxFile($file['local_path']);
 
-			if($response && ($remove_file === '1'))
-			{
+			$response = $dropbox->upload($dropboxFile, $full_path, ['autorename' => true]);
+
+			if ($response && ($remove_file === '1')) {
 				//	Get the Dropbox Share URL if we're removing the file
 				//	Update the lead meta information with the dropbox URL
-				try
-				{
-					$dropbox_share = self::$dropbox->share($full_path, 'dropbox');
+				try {
+					$url = $dropbox->postToAPI('/sharing/create_shared_link_with_settings', [
+						'path' => $response->getPathDisplay(),
+						'settings' => ['requested_visibility' => 'public'],
+					])->getDecodedBody()['url'];
 
-					if(isset($dropbox_share['url']))
-					{
+					if (! empty($url)) {
 						$current_url = $lead[$file['field_id']];
 
 						//	Multi-Uploads are JSON encoded, so handle them differently
-						if(isJson($current_url))
-						{
-							$url = $lead[$file['field_id']] = str_replace(json_encode($file['file_url']), json_encode($dropbox_share['url']), $current_url);
+						if (isJson($current_url)) {
+							$url = $lead[$file['field_id']] = str_replace(json_encode($file['file_url']), json_encode($url), $current_url);
 							$lead[$file['field_id']] = $url;
 						}
 						//	Single file uploads are just standard text, no JSON Encoding
-						else
-						{
-							$url = $dropbox_share['url'];
+						else {
+							$url = $url;
 						}
 
 						//	Update the database field
@@ -588,10 +591,8 @@ class GFdropbox {
 						unlink($file['local_path']);
 					}
 				}
-				catch (Exception $e) {}
-			}
-			else
-			{
+				catch (Exception $e) { }
+			} else {
 				$error[] = 'Could not upload '.pathinfo($file, PATHINFO_BASENAME).' file to dropbox: '. $file;
 			}
 		}
