@@ -1,12 +1,12 @@
 <?php
 /*
-Plugin Name: Gravity Forms Dropbox Uploader — Updated
-Plugin URI: http://www.blueliquiddesigns.com.au / http://www.industriousmouse.co.uk
-Description: Uploads a file to your Dropbox folder.
-Version: 1.1
-Author: Blue Liquid Designs / Industrious Mouse
-Contributors: usableweb (http://wordpress.org/support/profile/usableweb) / Industrious Mouse https://github.com/industrious-mouse
-Author URI: http://www.blueliquiddesigns.com.au / http://www.industriousmouse.co.uk
+Plugin Name: Gravity Forms Dropbox (v2) Uploader
+Plugin URI: http://www.industrious.agency
+Description: Uploads a file to your Dropbox folder using Dropbox API v2.
+Version: 2.0
+Author: Industrious Agency
+Contributors: [Industrious](https://github.com/industrious-mouse) / [Blue Liquid Designs](http://www.blueliquiddesigns.com.au) / [usableweb](http://wordpress.org/support/profile/usableweb)
+Author URI: http://www.industrious.agency
 
 ------------------------------------------------------------------------
 
