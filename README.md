@@ -1,5 +1,10 @@
 # Gravity Forms Dropbox Uploader #
 
+## 2.0 Updates (May 2017) ##
+
+Partial codebase update   
+Integrate with Dropbox API v2.0, as v1.0 is deprecated and EOL June 2017.
+
 ## 1.1 Updates (July 2015) ##
 
 Original Development by [Blue Liquid Designs](http://www.blueliquiddesigns.com.au).  
