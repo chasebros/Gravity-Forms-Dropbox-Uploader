@@ -1,4 +1,16 @@
 {
+    "name": "industrious-mouse/Gravity-Forms-Dropbox-Uploader",
+    "description": "The Gravity Forms Dropbox Uploader is a simple, intuitive plugin that integrates seamlessly into Gravity Forms and allows you to store Gravity Form uploads in your Dropbox account.",
+    "authors": [
+        {
+            "name": "Christian Thomas",
+            "email": "christian@industrious.agency"
+        },
+        {
+            "name": "Connor Parks",
+            "email": "connor@industrious.agency"
+        }
+    ],
     "require": {
         "kunalvarma05/dropbox-php-sdk": "^0.2.0"
     }
