@@ -8,13 +8,13 @@ Integrate with Dropbox API v2.0, as v1.0 is deprecated and EOL June 2017.
 ## 1.1 Updates (July 2015) ##
 
 Original Development by [Blue Liquid Designs](http://www.blueliquiddesigns.com.au).  
-Partial re-write July 2015 by [Industrious Mouse](http://www.industriousmouse.co.uk).
+Partial re-write July 2015 by [Industrious](http://industrious.agency).
 
 ## Support ##
 
-The plugin is no longer under active development. If you would like to take over this project please contact enquire@blueliquiddesigns.com.au.
+The plugin is no longer under active development.
   
-The repository/plugin will not be maintained by Industrious Mouse, we've just added the updates to help anyone out with some issues listed in the changelog below.
+The repository/plugin will not be maintained by Industrious, we've just added the updates to help anyone out with some issues listed in the changelog below.
 
 * * *
 
@@ -71,6 +71,10 @@ Hook/Filter Example — Allows custom folder outside of the current macros liste
 	}, 10, 2);
 
 ## Changelog ##
+
+### 2.0 ###
+
+*    Dropbox v2.0 Integration
 
 ### 1.1 ###
 
